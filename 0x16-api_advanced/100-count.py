@@ -1,43 +1,82 @@
 #!/usr/bin/python3
-"""Function to count words in all hot posts of a given Reddit subreddit."""
-import re
+"""
+This module contains a recursive function to get hot article titles from a subr
+and count the occurrences of given keywords.
+"""
 import requests
 
 
-def count_words(subreddit, word_list):
+def count_words(subreddit, word_list, hot_list=[], after=''):
     """
-    GET the word count for each word in word_list.
-    Print results in descending order by the count, not the title.
-    If no posts match or subreddit is invalid, print a newline.
-    If a word has no matches, skip and do not print it
+    Recursively count keywords in hot article titles from a subreddit.
     """
-    storage = {word.lower(): 0 for word in word_list}
-    url = "https://www.reddit.com/r/{}/hot.json".format(subreddit)
-    headers = {'user-agent': 'philsrequest'}
+    # Define the base URL for the Reddit API
+    url = f'https://www.reddit.com/r/{subreddit}/hot.json'
 
-    r = requests.get(url, headers=headers)
-    if (r.status_code == 404 or 'data' not in r.json()):
+    # Define the headers for the request
+    headers = {'User-Agent': 'MyRedditBot/1.0'}
+
+    # Define the parameters for pagination
+    params = {'after': after} if after else {}
+
+    # Make the GET request to the Reddit API
+    response = requests.get(
+            url, headers=headers, params=params, allow_redirects=False)
+
+    # Check if the request was successful
+    if response.status_code != 200:
         return None
+
+    # Parse the JSON response
+    data = response.json().get('data', {})
+
+    # Get the list of hot articles
+    children = data.get('children', [])
+
+    # Add the titles of the hot articles to the hot_list
+    for child in children:
+        hot_list.append(child['data']['title'])
+
+    # Check if there are more pages to fetch
+    after = data.get('after')
+    if after:
+        return count_words(subreddit, word_list, hot_list, after)
     else:
-        while (1):
-            r = r.json()
-            for post in r['data']['children']:
-                tmp = post['data']['title'].split()
-                for word in tmp:
-                    if word.lower() in storage.keys():
-                        storage[word.lower()] += 1
+        # When recursion is done, count the words
+        word_count = {}
 
-            after = r['data']['after']
-            if (after is None):
-                break
-            r = requests.get("{}?after={}".format(url, after), headers=headers)
+        # Normalize word_list to lowercase
+        normalized_word_list = [word.lower() for word in word_list]
 
-    storage = [(k, storage[k]) for k in
-               sorted(storage, key=storage.get, reverse=True)]
+        for title in hot_list:
+            words = title.lower().split()
+            for word in words:
+                if word in normalized_word_list:
+                    if word in word_count:
+                        word_count[word] += 1
+                    else:
+                        word_count[word] = 1
 
-    if len(storage) == 0:
-        print("")
+        # Filter out words with 0 count
+        word_count = {k: v for k, v in word_count.items() if v > 0}
+
+        # Sort by count descending, then alphabetically ascending
+        sorted_word_count = sorted(
+                word_count.items(), key=lambda item: (-item[1], item[0]))
+
+        # Print the results
+        for word, count in sorted_word_count:
+            print(f"{word}: {count}")
+
+
+# Example usage
+if __name__ == '__main__':
+    import sys
+    if len(sys.argv) < 3:
+        print("Usage: {} <subreddit> <list of keywords>".format(sys.argv[0]))
+        print("Ex: {} programming\
+ 'python java javascript'".format(sys.argv[0]))
     else:
-        for k, v in storage:
-            if (v > 0):
-                print("{}: {:d}".format(k, v))
+        subreddit = sys.argv[1]
+        word_list = [x for x in sys.argv[2].split()]
+        count_words(subreddit, word_list)
