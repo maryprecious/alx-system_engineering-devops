@@ -1,30 +1,46 @@
 #!/usr/bin/python3
-"""Function to query a list of all hot posts on a given Reddit subreddit."""
+"""
+Getting the hot articles title using a recursive function
+"""
 import requests
 
 
-def recurse(subreddit, hot_list=[], after="", count=0):
-    """Returns a list of titles of all hot posts on a given subreddit."""
-    url = "https://www.reddit.com/r/{}/hot/.json".format(subreddit)
-    headers = {
-        "User-Agent": "linux:0x16.api.advanced:v1.0.0 (by /u/maryprecious)"
-    }
-    params = {
-        "after": after,
-        "count": count,
-        "limit": 100
-    }
-    response = requests.get(url, headers=headers, params=params,
-                            allow_redirects=False)
-    if response.status_code == 404:
+# counter = 0
+def recurse(subreddit, hot_list=[], after=''):
+    """
+    Recursive function
+    """
+    # Define the base URL for the Reddit API
+    url = 'https://www.reddit.com/r/{}/hot.json'.format(subreddit)
+
+    # Define the headers for the request
+    headers = {'User-Agent': 'MyRedditBot/1.0'}
+
+    # Define the parameters for pagination
+    params = {'after': after}
+
+    # Make the GET request to the Reddit API
+    response = requests.get(
+            url, headers=headers, params=params, allow_redirects=False
+            )
+
+    # Check if the request was successful
+    if response.status_code != 200:
         return None
 
-    results = response.json().get("data")
-    after = results.get("after")
-    count += results.get("dist")
-    for c in results.get("children"):
-        hot_list.append(c.get("data").get("title"))
+    # Parse the JSON response
+    data = response.json().get('data', {})
 
-    if after is not None:
-        return recurse(subreddit, hot_list, after, count)
-    return hot_list
+    # Get the list of hot articles
+    children = data.get('children', [])
+
+    # Add the titles of the hot articles to the hot_list
+    for child in children:
+        hot_list.append(child['data']['title'])
+
+    # Check if there are more pages to fetch
+    after = data.get('after')
+    if after:
+        return recurse(subreddit, hot_list, after)
+    else:
+        return hot_list
