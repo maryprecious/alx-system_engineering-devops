@@ -1,13 +1,7 @@
-# Fixes bad `phpp` extensions to `php` in the WordPress file `wp-settings.php`.
-# By: Imanol Asolo
+# changing phpp to php
+# new comment
 
-exec { 'fix-wordpress':
-  command => 'sed -i s/phpp/php/g /var/www/html/wp-settings.php',
-  path    => '/usr/local/bin/:/bin/'
-}# Fixes bad `phpp` extensions to `php` in the WordPress file `wp-settings.php`.
-# By: Imanol Asolo
-
-exec { 'fix-wordpress':
-  command => 'sed -i s/phpp/php/g /var/www/html/wp-settings.php',
-  path    => '/usr/local/bin/:/bin/'
+file { '/var/www/html/wp-settings.php':
+  ensure  => present,
+  content => inline_template('<%= File.read("/var/www/html/wp-settings.php").gsub(/\.phpp/, ".php") %>'),
 }
